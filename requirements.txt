@@ -1,0 +1,15 @@
+# Product Demand Forecaster - dependencies
+# Install inside the virtual environment with:
+#     pip install -r requirements.txt
+
+# Web server and /predict API
+flask>=3.0,<4
+
+# Must match the version used to train and save the model
+scikit-learn==1.7.2
+
+# Builds the feature row for the model (2.2.2+ supports NumPy 2)
+pandas>=2.2.2,<3
+
+# The model was saved with NumPy 2.x; NumPy 1.x cannot load it
+numpy>=2,<3

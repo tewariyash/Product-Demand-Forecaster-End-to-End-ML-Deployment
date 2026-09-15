@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Product Demand Forecaster</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+    --fog: #EEF1F4;
+    --panel: #FFFFFF;
+    --ink: #14213D;
+    --ink-soft: #4A5568;
+    --muted: #6B7686;
+    --line: #D5DBE3;
+    --teal: #2E6F73;
+    --teal-soft: #D6E7E7;
+    --marigold: #F2A516;
+    --marigold-soft: #FDF0D5;
+    --red: #B23A3A;
+    --red-soft: #F8E3E3;
+    --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    background: var(--fog);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 15px;
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+}
+
+.page {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 40px 24px 56px;
+}
+
+/* Header */
+.masthead {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-bottom: 32px;
+}
+.masthead h1 {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: clamp(30px, 4.4vw, 48px);
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+    margin: 0;
+    max-width: 14ch;
+}
+.masthead p {
+    margin: 0;
+    max-width: 44ch;
+    color: var(--ink-soft);
+}
+
+/* Layout */
+.layout {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 24px;
+    align-items: start;
+}
+.inputs {
+    position: sticky;
+    top: 20px;
+    background: var(--panel);
+    border-radius: 14px;
+    padding: 24px;
+    border: 1px solid var(--line);
+}
+.results { display: grid; gap: 20px; min-width: 0; }
+.results > *, .two-col > * { min-width: 0; }
+
+.panel {
+    background: var(--panel);
+    border-radius: 14px;
+    border: 1px solid var(--line);
+    padding: 24px;
+}
+.panel h2 {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 20px;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+}
+.panel .sub {
+    margin: 0 0 18px;
+    color: var(--muted);
+    font-size: 14px;
+    max-width: 62ch;
+}
+
+/* Form */
+fieldset { border: 0; margin: 0 0 18px; padding: 0; }
+legend {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 16px;
+    margin-bottom: 12px;
+    padding: 0;
+}
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.field { margin-bottom: 14px; }
+.field label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+}
+select, input[type="number"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font: inherit;
+    color: var(--ink);
+    background: #FBFCFD;
+}
+select:focus-visible, input:focus-visible, button:focus-visible {
+    outline: 3px solid var(--marigold);
+    outline-offset: 2px;
+}
+input[type="number"]:invalid:not(:placeholder-shown) { border-color: var(--red); }
+
+/* Slider paired with number field */
+.slide-row { display: grid; grid-template-columns: 1fr 88px; gap: 10px; align-items: center; }
+input[type="range"] {
+    width: 100%;
+    accent-color: var(--teal);
+    height: 22px;
+    margin: 0;
+}
+.slide-row input[type="number"] { padding: 8px 10px; text-align: right; }
+
+.hint {
+    font-size: 12.5px;
+    color: var(--muted);
+    margin-top: 6px;
+    min-height: 1.2em;
+}
+.hint.good { color: var(--teal); }
+.hint.warn { color: #9A6408; }
+
+.actions { display: grid; gap: 10px; margin-top: 6px; }
+.btn {
+    font: inherit;
+    font-weight: 600;
+    border-radius: 9px;
+    padding: 12px 16px;
+    cursor: pointer;
+    border: 1px solid transparent;
+}
+.btn-primary { background: var(--ink); color: #fff; font-size: 16px; }
+.btn-primary:hover { background: #22325A; }
+.btn-primary:disabled { background: #8A94A6; cursor: progress; }
+.btn-quiet { background: transparent; border-color: var(--line); color: var(--ink); }
+.btn-quiet:hover { background: var(--fog); }
+.btn-quiet:disabled { color: var(--muted); cursor: not-allowed; }
+
+.toggle {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    margin-top: 4px;
+    cursor: pointer;
+}
+.toggle input { accent-color: var(--teal); width: 16px; height: 16px; }
+
+/* Forecast hero */
+.forecast {
+    background: var(--ink);
+    color: #fff;
+    border-radius: 14px;
+    padding: 28px 28px 24px;
+    position: relative;
+    overflow: hidden;
+}
+.forecast .label { color: #B9C3D6; font-size: 15px; margin: 0; }
+.forecast .number {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: clamp(56px, 9vw, 104px);
+    line-height: 1;
+    letter-spacing: -0.035em;
+    margin: 10px 0 6px;
+    color: var(--marigold);
+}
+.forecast .number small {
+    font-size: 0.26em;
+    letter-spacing: 0;
+    font-weight: 600;
+    color: #fff;
+    margin-left: 8px;
+}
+.forecast .context { color: #D6DCE8; margin: 0; max-width: 60ch; }
+.forecast .busy {
+    position: absolute; left: 0; bottom: 0; height: 3px; width: 100%;
+    background: linear-gradient(90deg, transparent, var(--marigold), transparent);
+    background-size: 40% 100%;
+    background-repeat: no-repeat;
+    animation: sweep 1s linear infinite;
+    display: none;
+}
+.forecast.loading .busy { display: block; }
+@keyframes sweep { from { background-position: -40% 0; } to { background-position: 140% 0; } }
+
+.stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    margin-top: 22px;
+    background: #2E3B5A;
+    border-radius: 10px;
+    overflow: hidden;
+}
+.stat { background: #1B2A4B; padding: 12px 14px; }
+.stat dt { font-size: 12.5px; color: #9FAAC0; }
+.stat dd { margin: 2px 0 0; font-size: 18px; font-weight: 600; }
+
+.empty {
+    border: 1.5px dashed var(--line);
+    border-radius: 14px;
+    padding: 36px 28px;
+    color: var(--ink-soft);
+    background: rgba(255,255,255,0.5);
+}
+.empty h2 { font-family: var(--display); margin: 0 0 6px; font-size: 22px; color: var(--ink); }
+.empty p { margin: 0; max-width: 52ch; }
+
+.error {
+    background: var(--red-soft);
+    color: var(--red);
+    border: 1px solid #E6B8B8;
+    border-radius: 10px;
+    padding: 14px 16px;
+}
+.error strong { display: block; }
+
+[hidden] { display: none !important; }
+
+/* Charts */
+.chart { width: 100%; height: auto; display: block; overflow: visible; }
+.chart text { font-family: var(--body); fill: var(--ink-soft); font-size: 12px; }
+.chart .axis { stroke: var(--line); }
+.chart .zero { stroke: var(--ink); stroke-width: 1.5; }
+.chart .grid { stroke: #E8ECF1; }
+.chart .bar-up { fill: var(--teal); }
+.chart .bar-down { fill: #C9D2DD; }
+.chart .line { fill: none; stroke: var(--teal); stroke-width: 2.5; }
+.chart .area { fill: var(--teal-soft); opacity: .6; }
+.chart .marker { fill: var(--marigold); stroke: var(--ink); stroke-width: 1.5; }
+.chart .dot { fill: var(--teal); }
+.chart .tier-bar { fill: #C9D2DD; }
+.chart .tier-bar.current { fill: var(--marigold); }
+.chart .strong { fill: var(--ink); font-weight: 600; }
+
+.legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; color: var(--ink-soft); margin-top: 10px; }
+.legend span::before {
+    content: ""; display: inline-block; width: 11px; height: 11px; border-radius: 3px;
+    margin-right: 6px; vertical-align: -1px; background: var(--c);
+}
+
+.two-col { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; }
+
+.explore-controls { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.explore-controls select { width: auto; min-width: 220px; }
+.readout { font-size: 14px; color: var(--ink-soft); min-height: 1.5em; }
+.readout b { color: var(--ink); }
+
+/* Tooltip */
+.tip {
+    position: fixed;
+    pointer-events: none;
+    background: var(--ink);
+    color: #fff;
+    font-size: 13px;
+    padding: 7px 10px;
+    border-radius: 7px;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity .12s;
+    max-width: 240px;
+}
+
+/* Scenarios table */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th, td { text-align: right; padding: 9px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align: left; }
+th { font-weight: 600; color: var(--muted); font-size: 12.5px; }
+td.units { font-weight: 600; }
+td .meter { display: inline-block; height: 6px; border-radius: 3px; background: var(--teal); vertical-align: middle; margin-right: 8px; }
+tr.best td.units { color: var(--teal); }
+.row-btn {
+    font: inherit; font-size: 12.5px; background: none; border: 0; color: var(--teal);
+    cursor: pointer; padding: 2px 4px; text-decoration: underline;
+}
+.table-actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+
+.footer { margin-top: 36px; color: var(--muted); font-size: 13px; }
+
+/* Responsive */
+@media (max-width: 960px) {
+    .layout { grid-template-columns: 1fr; }
+    .inputs { position: static; }
+    .two-col { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+    .page { padding: 24px 14px 40px; }
+    .pair { grid-template-columns: 1fr; }
+    .stats { grid-template-columns: 1fr; }
+    .forecast { padding: 22px 20px; }
+    .panel, .inputs { padding: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .forecast .busy { animation: none; background: var(--marigold); }
+    * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+    <header class="masthead">
+        <h1>Product demand forecaster</h1>
+        <p>Describe a product's pricing, promotion and reach. A linear regression model trained on historical sales estimates how many units it will sell in a month.</p>
+    </header>
+
+    <div class="layout">
+
+        <!-- Inputs -->
+        <form class="inputs" id="predictionForm" novalidate>
+
+            <fieldset>
+                <legend>Product</legend>
+                <div class="pair">
+                    <div class="field">
+                        <label for="productCategory">Category</label>
+                        <select id="productCategory">
+                            <option>Apparel</option>
+                            <option>Beauty &amp; Personal Care</option>
+                            <option selected>Electronics</option>
+                            <option>Furniture</option>
+                            <option>Grocery</option>
+                            <option>Home &amp; Kitchen</option>
+                            <option>Sports &amp; Fitness</option>
+                            <option>Toys &amp; Games</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="brandTier">Brand tier</label>
+                        <select id="brandTier">
+                            <option>Budget</option>
+                            <option selected>Mid-Range</option>
+                            <option>Premium</option>
+                        </select>
+                    </div>
+                </div>
+            </fieldset>
+
+            <fieldset>
+                <legend>Pricing</legend>
+                <div class="pair">
+                    <div class="field">
+                        <label for="unitPrice">Your price (₹)</label>
+                        <input type="number" id="unitPrice" value="500" min="0" step="any" placeholder="500" required>
+                    </div>
+                    <div class="field">
+                        <label for="competitorPrice">Competitor price (₹)</label>
+                        <input type="number" id="competitorPrice" value="520" min="0" step="any" placeholder="520" required>
+                    </div>
+                </div>
+                <div class="hint" id="priceHint" aria-live="polite"></div>
+
+                <div class="field" style="margin-top:10px">
+                    <label for="discountPercentage">Discount <span>%</span></label>
+                    <div class="slide-row">
+                        <input type="range" data-for="discountPercentage" min="0" max="100" step="1" value="10" aria-label="Discount slider">
+                        <input type="number" id="discountPercentage" value="10" min="0" max="100" step="any" required>
+                    </div>
+                    <div class="hint" id="netHint"></div>
+                </div>
+            </fieldset>
+
+            <fieldset>
+                <legend>Promotion and reach</legend>
+                <div class="field">
+                    <label for="advertisingSpend">Advertising spend <span>₹</span></label>
+                    <div class="slide-row">
+                        <input type="range" data-for="advertisingSpend" min="0" max="50000" step="500" value="2000" aria-label="Advertising spend slider">
+                        <input type="number" id="advertisingSpend" value="2000" min="0" step="any" required>
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="storeCoverageCount">Stores stocking it</label>
+                    <div class="slide-row">
+                        <input type="range" data-for="storeCoverageCount" min="0" max="1000" step="5" value="150" aria-label="Store coverage slider">
+                        <input type="number" id="storeCoverageCount" value="150" min="0" step="any" required>
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="customerRating">Customer rating <span>out of 5</span></label>
+                    <div class="slide-row">
+                        <input type="range" data-for="customerRating" min="1" max="5" step="0.1" value="4.2" aria-label="Customer rating slider">
+                        <input type="number" id="customerRating" value="4.2" min="0" max="5" step="any" required>
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="inventoryAvailability">Inventory in stock <span>%</span></label>
+                    <div class="slide-row">
+                        <input type="range" data-for="inventoryAvailability" min="0" max="100" step="1" value="85" aria-label="Inventory slider">
+                        <input type="number" id="inventoryAvailability" value="85" min="0" max="100" step="any" required>
+                    </div>
+                </div>
+            </fieldset>
+
+            <div class="actions">
+                <button type="submit" class="btn btn-primary" id="predictButton">Predict demand</button>
+                <label class="toggle">
+                    <input type="checkbox" id="liveToggle">
+                    Update the forecast as I change values
+                </label>
+            </div>
+        </form>
+
+        <!-- Results -->
+        <main class="results">
+
+            <div class="error" id="error" role="alert" hidden></div>
+
+            <section class="empty" id="emptyState">
+                <h2>No forecast yet</h2>
+                <p>Adjust the inputs on the left and choose <b>Predict demand</b>. You'll see the estimate, which inputs move it most, and how it responds as you change a single factor.</p>
+            </section>
+
+            <section class="forecast" id="forecast" hidden aria-live="polite">
+                <p class="label" id="forecastLabel">Estimated monthly units sold</p>
+                <div class="number"><span id="prediction">0</span><small>units</small></div>
+                <p class="context" id="forecastContext"></p>
+                <dl class="stats">
+                    <div class="stat"><dt>Selling price after discount</dt><dd id="statNet">–</dd></div>
+                    <div class="stat"><dt>Estimated monthly revenue</dt><dd id="statRevenue">–</dd></div>
+                    <div class="stat"><dt>Units per store</dt><dd id="statPerStore">–</dd></div>
+                </dl>
+                <div class="busy"></div>
+            </section>
+
+            <div class="two-col" id="insights" hidden>
+                <section class="panel">
+                    <h2>What moves this forecast</h2>
+                    <p class="sub">Each bar shows how the estimate changes if one input goes down or up by 20%, with everything else held as entered.</p>
+                    <div id="tornado"></div>
+                    <div class="legend">
+                        <span style="--c: #C9D2DD">Input 20% lower</span>
+                        <span style="--c: #2E6F73">Input 20% higher</span>
+                    </div>
+                </section>
+                <section class="panel">
+                    <h2>Same product, other tiers</h2>
+                    <p class="sub">The estimate if this product were sold under each brand tier.</p>
+                    <div id="tiers"></div>
+                </section>
+            </div>
+
+            <section class="panel" id="explorer" hidden>
+                <h2>Explore one factor</h2>
+                <p class="sub">Pick an input to sweep across its range while the rest stay fixed. Hover the line to read values; the marigold point is your current input.</p>
+                <div class="explore-controls">
+                    <label for="sweepField" class="sr-only" style="position:absolute;left:-9999px">Factor to explore</label>
+                    <select id="sweepField">
+                        <option value="unit_price">Your price</option>
+                        <option value="discount_percentage">Discount</option>
+                        <option value="advertising_spend" selected>Advertising spend</option>
+                        <option value="competitor_price">Competitor price</option>
+                        <option value="store_coverage_count">Stores stocking it</option>
+                        <option value="customer_rating">Customer rating</option>
+                        <option value="inventory_availability_percentage">Inventory in stock</option>
+                    </select>
+                    <span class="readout" id="sweepReadout"></span>
+                </div>
+                <div id="sweep"></div>
+            </section>
+
+            <section class="panel" id="scenarios" hidden>
+                <h2>Saved scenarios</h2>
+                <p class="sub">Each forecast you run is added here so you can compare options side by side. Select <b>Load</b> to bring a scenario back into the form.</p>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th><th>Product</th><th>Price</th><th>Disc.</th><th>Ad spend</th>
+                                <th>Stores</th><th>Rating</th><th>Stock</th><th>Units</th><th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="scenarioBody"></tbody>
+                    </table>
+                </div>
+                <div class="table-actions">
+                    <button type="button" class="btn btn-quiet" id="exportBtn">Download as CSV</button>
+                    <button type="button" class="btn btn-quiet" id="clearBtn">Clear scenarios</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <p class="footer">Built with Flask and a scikit-learn linear regression model. Estimates reflect patterns in the training data and are most reliable for inputs within that data's range.</p>
+</div>
+
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script>
+/* ------------------------------------------------------------------
+   Field definitions: form id  ->  API key, display name, bounds
+------------------------------------------------------------------ */
+const NUMERIC = [
+    { id: "unitPrice",             key: "unit_price",                          name: "Your price",         min: 0, max: Infinity, fmt: v => rupee(v) },
+    { id: "competitorPrice",       key: "competitor_price",                    name: "Competitor price",   min: 0, max: Infinity, fmt: v => rupee(v) },
+    { id: "discountPercentage",    key: "discount_percentage",                 name: "Discount",           min: 0, max: 100,      fmt: v => num(v, 1) + "%" },
+    { id: "advertisingSpend",      key: "advertising_spend",                   name: "Advertising spend",  min: 0, max: Infinity, fmt: v => rupee(v) },
+    { id: "storeCoverageCount",    key: "store_coverage_count",                name: "Stores stocking it", min: 0, max: Infinity, fmt: v => num(v, 0) },
+    { id: "customerRating",        key: "customer_rating",                     name: "Customer rating",    min: 0, max: 5,        fmt: v => num(v, 1) },
+    { id: "inventoryAvailability", key: "inventory_availability_percentage",   name: "Inventory in stock", min: 0, max: 100,      fmt: v => num(v, 0) + "%" },
+];
+const BY_KEY = Object.fromEntries(NUMERIC.map(f => [f.key, f]));
+const TIERS = ["Budget", "Mid-Range", "Premium"];
+
+const $ = id => document.getElementById(id);
+const nf0 = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
+const num = (v, d = 0) => new Intl.NumberFormat("en-IN", { maximumFractionDigits: d }).format(v);
+const rupee = v => "₹" + nf0.format(v);
+const units = v => nf0.format(Math.round(v));
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+let lastPayload = null;
+let lastPrediction = null;
+let scenarios = [];
+let runId = 0;
+
+/* ------------------------------------------------------------------
+   API
+------------------------------------------------------------------ */
+async function predict(payload) {
+    let response;
+    try {
+        response = await fetch("/predict", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+    } catch {
+        throw new Error("Couldn't reach the model server. Start the Flask app and open this page from its address (for example http://127.0.0.1:5000).");
+    }
+    let data;
+    try { data = await response.json(); }
+    catch { throw new Error(`The server replied with status ${response.status} but no readable result.`); }
+    if (!data.success) throw new Error(data.error || "The model didn't return a prediction.");
+    return Number(data.prediction);
+}
+
+function readForm() {
+    const payload = {
+        product_category: $("productCategory").value,
+        brand_tier: $("brandTier").value,
+    };
+    const problems = [];
+    for (const f of NUMERIC) {
+        const el = $(f.id);
+        const v = el.value === "" ? NaN : Number(el.value);
+        if (!Number.isFinite(v)) problems.push(`${f.name} needs a number.`);
+        else if (v < f.min || v > f.max) problems.push(`${f.name} must be between ${f.min} and ${f.max}.`);
+        payload[f.key] = v;
+    }
+    return { payload, problems };
+}
+
+/* ------------------------------------------------------------------
+   Sliders <-> number inputs, live hints
+------------------------------------------------------------------ */
+document.querySelectorAll('input[type="range"][data-for]').forEach(range => {
+    const box = $(range.dataset.for);
+    range.addEventListener("input", () => { box.value = range.value; onInputChange(); });
+    box.addEventListener("input", () => {
+        const v = Number(box.value);
+        if (Number.isFinite(v)) {
+            if (v > Number(range.max)) range.max = String(Math.ceil(v * 1.5));
+            range.value = v;
+        }
+        onInputChange();
+    });
+});
+["unitPrice", "competitorPrice", "productCategory", "brandTier"].forEach(id =>
+    $(id).addEventListener("input", onInputChange));
+
+function updateHints() {
+    const p = Number($("unitPrice").value);
+    const c = Number($("competitorPrice").value);
+    const d = Number($("discountPercentage").value);
+    const hint = $("priceHint");
+    hint.className = "hint";
+    if (p > 0 && c > 0) {
+        const gap = (p - c) / c * 100;
+        if (Math.abs(gap) < 0.5) hint.textContent = "Priced the same as the competitor.";
+        else if (gap < 0) { hint.textContent = `${num(-gap, 1)}% cheaper than the competitor.`; hint.classList.add("good"); }
+        else { hint.textContent = `${num(gap, 1)}% more expensive than the competitor.`; hint.classList.add("warn"); }
+    } else hint.textContent = "";
+    $("netHint").textContent = p > 0 && d >= 0 && d <= 100
+        ? `Customers pay ${rupee(p * (1 - d / 100))} after discount.` : "";
+}
+
+let liveTimer;
+function onInputChange() {
+    updateHints();
+    if ($("liveToggle").checked) {
+        clearTimeout(liveTimer);
+        liveTimer = setTimeout(() => run({ save: false }), 450);
+    }
+}
+
+/* ------------------------------------------------------------------
+   Main run
+------------------------------------------------------------------ */
+$("predictionForm").addEventListener("submit", e => { e.preventDefault(); run({ save: true }); });
+
+async function run({ save }) {
+    const { payload, problems } = readForm();
+    const err = $("error");
+    if (problems.length) {
+        err.innerHTML = "<strong>Check these inputs</strong>" + problems.join(" ");
+        err.hidden = false;
+        return;
+    }
+    err.hidden = true;
+
+    const id = ++runId;
+    const btn = $("predictButton");
+    btn.disabled = true;
+    btn.textContent = "Predicting…";
+    $("forecast").classList.add("loading");
+
+    try {
+        const value = await predict(payload);
+        if (id !== runId) return;   // a newer run started
+        lastPayload = payload;
+        showForecast(value, payload);
+        if (save) addScenario(payload, value);
+
+        // Secondary analysis runs in parallel; failures here shouldn't hide the main result.
+        Promise.all([drawTornado(payload, value, id), drawTiers(payload, id), drawSweep(id)])
+            .catch(e => console.warn("Analysis step failed:", e));
+    } catch (e) {
+        if (id !== runId) return;
+        err.innerHTML = "<strong>Forecast failed</strong>" + escapeHtml(e.message);
+        err.hidden = false;
+    } finally {
+        if (id === runId) {
+            btn.disabled = false;
+            btn.textContent = "Predict demand";
+            $("forecast").classList.remove("loading");
+        }
+    }
+}
+
+function showForecast(value, p) {
+    $("emptyState").hidden = true;
+    $("forecast").hidden = false;
+    $("insights").hidden = false;
+    $("explorer").hidden = false;
+
+    countUp($("prediction"), lastPrediction ?? 0, value);
+
+    const ctx = $("forecastContext");
+    if (value <= 0) {
+        ctx.textContent = "The model predicts little to no demand for these inputs. They may also be outside the range it was trained on, so check the values.";
+    } else if (lastPrediction !== null && Math.round(lastPrediction) !== Math.round(value)) {
+        const diff = value - lastPrediction;
+        ctx.textContent = `${diff > 0 ? "Up" : "Down"} ${units(Math.abs(diff))} units from the previous forecast.`;
+    } else {
+        ctx.textContent = `${p.product_category}, ${p.brand_tier.toLowerCase()} tier, sold in ${num(p.store_coverage_count)} stores.`;
+    }
+    lastPrediction = value;
+
+    const net = p.unit_price * (1 - p.discount_percentage / 100);
+    const safe = Math.max(0, value);
+    $("statNet").textContent = rupee(net);
+    $("statRevenue").textContent = rupee(net * safe);
+    $("statPerStore").textContent = p.store_coverage_count > 0 ? num(safe / p.store_coverage_count, 1) : "–";
+}
+
+function countUp(el, from, to) {
+    if (reduceMotion) { el.textContent = units(to); return; }
+    const start = performance.now(), dur = 700;
+    const step = t => {
+        const k = Math.min(1, (t - start) / dur);
+        const e = 1 - Math.pow(1 - k, 3);
+        el.textContent = units(from + (to - from) * e);
+        if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+}
+
+/* ------------------------------------------------------------------
+   SVG helpers
+------------------------------------------------------------------ */
+const SVGNS = "http://www.w3.org/2000/svg";
+function svg(tag, attrs = {}, text) {
+    const el = document.createElementNS(SVGNS, tag);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    if (text !== undefined) el.textContent = text;
+    return el;
+}
+function niceTicks(lo, hi, count = 4) {
+    if (lo === hi) { lo -= 1; hi += 1; }
+    const raw = (hi - lo) / count;
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= raw);
+    const ticks = [];
+    for (let v = Math.floor(lo / step) * step; v <= hi + step * 1e-9; v += step) ticks.push(+v.toFixed(10));
+    return ticks;
+}
+const tip = $("tip");
+function showTip(evt, html) {
+    tip.innerHTML = html;
+    tip.style.opacity = 1;
+    const x = Math.min(evt.clientX + 14, window.innerWidth - tip.offsetWidth - 8);
+    tip.style.left = x + "px";
+    tip.style.top = (evt.clientY - tip.offsetHeight - 12) + "px";
+}
+function hideTip() { tip.style.opacity = 0; }
+function loadingNote(container) {
+    if (!container.firstChild) container.innerHTML = '<p class="sub">Working it out…</p>';
+}
+
+/* ------------------------------------------------------------------
+   Tornado: ±20% on each numeric input
+------------------------------------------------------------------ */
+async function drawTornado(base, baseValue, id) {
+    const box = $("tornado");
+    loadingNote(box);
+
+    const jobs = NUMERIC.map(async f => {
+        const v = base[f.key];
+        const delta = v !== 0 ? Math.abs(v) * 0.2 : (f.max === Infinity ? 1 : f.max * 0.2);
+        const lowV = Math.max(f.min, v - delta);
+        const highV = Math.min(f.max, v + delta);
+        const [lo, hi] = await Promise.all([
+            predict({ ...base, [f.key]: lowV }),
+            predict({ ...base, [f.key]: highV }),
+        ]);
+        return { f, lowV, highV, lo: lo - baseValue, hi: hi - baseValue };
+    });
+    const rows = await Promise.all(jobs);
+    if (id !== runId) return;
+    rows.sort((a, b) => Math.max(Math.abs(b.lo), Math.abs(b.hi)) - Math.max(Math.abs(a.lo), Math.abs(a.hi)));
+
+    const W = 420, labelW = 128, rowH = 30, top = 6, bottom = 26;
+    const H = top + rows.length * rowH + bottom;
+    const extent = Math.max(1, ...rows.flatMap(r => [Math.abs(r.lo), Math.abs(r.hi)]));
+    const plotL = labelW, plotR = W - 10;
+    const mid = (plotL + plotR) / 2;
+    const scale = (plotR - plotL) / 2 / extent;
+
+    const root = svg("svg", { viewBox: `0 0 ${W} ${H}`, class: "chart", role: "img",
+        "aria-label": "Change in forecast when each input moves 20 percent" });
+
+    niceTicks(-extent, extent, 4).forEach(t => {
+        if (Math.abs(t) > extent) return;
+        const x = mid + t * scale;
+        root.append(svg("line", { x1: x, x2: x, y1: top, y2: H - bottom, class: "grid" }));
+        root.append(svg("text", { x, y: H - 8, "text-anchor": "middle" }, (t > 0 ? "+" : "") + units(t)));
+    });
+
+    rows.forEach((r, i) => {
+        const y = top + i * rowH;
+        root.append(svg("text", { x: labelW - 10, y: y + rowH / 2 + 4, "text-anchor": "end", class: "strong" }, r.f.name));
+        [["lo", r.lowV, "bar-down"], ["hi", r.highV, "bar-up"]].forEach(([k, inputV, cls]) => {
+            const d = r[k];
+            const x = d < 0 ? mid + d * scale : mid;
+            const bar = svg("rect", { x, y: y + 6, width: Math.max(1, Math.abs(d) * scale), height: rowH - 12, rx: 3, class: cls, tabindex: 0 });
+            const html = `<b>${r.f.name}</b> at ${r.f.fmt(inputV)}<br>${d >= 0 ? "+" : "−"}${units(Math.abs(d))} units`;
+            bar.addEventListener("mousemove", e => showTip(e, html));
+            bar.addEventListener("mouseleave", hideTip);
+            bar.append(svg("title", {}, `${r.f.name} at ${r.f.fmt(inputV)}: ${d >= 0 ? "+" : "-"}${units(Math.abs(d))} units`));
+            root.append(bar);
+        });
+    });
+    root.append(svg("line", { x1: mid, x2: mid, y1: top, y2: H - bottom, class: "zero" }));
+
+    box.replaceChildren(root);
+}
+
+/* ------------------------------------------------------------------
+   Brand tier comparison
+------------------------------------------------------------------ */
+async function drawTiers(base, id) {
+    const box = $("tiers");
+    loadingNote(box);
+    const values = await Promise.all(TIERS.map(t => predict({ ...base, brand_tier: t })));
+    if (id !== runId) return;
+
+    const W = 320, H = 230, top = 24, bottom = 30, left = 8, right = 8;
+    const lo = Math.min(0, ...values), hi = Math.max(1, ...values);
+    const y = v => top + (hi - v) / (hi - lo) * (H - top - bottom);
+    const slot = (W - left - right) / TIERS.length;
+
+    const root = svg("svg", { viewBox: `0 0 ${W} ${H}`, class: "chart", role: "img", "aria-label": "Forecast by brand tier" });
+    TIERS.forEach((t, i) => {
+        const v = values[i];
+        const x = left + i * slot + slot * 0.18, w = slot * 0.64;
+        const y0 = y(0), y1 = y(v);
+        root.append(svg("rect", {
+            x, y: Math.min(y0, y1), width: w, height: Math.max(1, Math.abs(y0 - y1)), rx: 4,
+            class: "tier-bar" + (t === base.brand_tier ? " current" : ""),
+        }));
+        root.append(svg("text", { x: x + w / 2, y: Math.min(y0, y1) - 7, "text-anchor": "middle", class: "strong" }, units(v)));
+        root.append(svg("text", { x: x + w / 2, y: H - 10, "text-anchor": "middle" }, t + (t === base.brand_tier ? " (yours)" : "")));
+    });
+    root.append(svg("line", { x1: left, x2: W - right, y1: y(0), y2: y(0), class: "axis" }));
+    box.replaceChildren(root);
+}
+
+/* ------------------------------------------------------------------
+   Sweep one factor across its range
+------------------------------------------------------------------ */
+$("sweepField").addEventListener("change", () => { if (lastPayload) drawSweep(runId); });
+
+function sweepRange(key, current) {
+    switch (key) {
+        case "discount_percentage": return [0, 60];
+        case "customer_rating": return [1, 5];
+        case "inventory_availability_percentage": return [20, 100];
+        default: {
+            const hi = Math.max(current * 2, 10);
+            return [0, hi];
+        }
+    }
+}
+
+async function drawSweep(id) {
+    const base = lastPayload;
+    const key = $("sweepField").value;
+    const f = BY_KEY[key];
+    const current = base[key];
+    let [a, b] = sweepRange(key, current);
+    a = Math.min(a, current); b = Math.max(b, current);
+    const N = 13;
+    const xs = Array.from({ length: N }, (_, i) => a + (b - a) * i / (N - 1));
+
+    const box = $("sweep");
+    loadingNote(box);
+    const [ys, curY] = await Promise.all([
+        Promise.all(xs.map(x => predict({ ...base, [key]: x }))),
+        predict(base),
+    ]);
+    if (id !== runId || key !== $("sweepField").value) return;
+
+    const W = 760, H = 300, L = 62, R = 16, T = 14, B = 40;
+    const yLo = Math.min(0, ...ys), yHi = Math.max(...ys, curY, 1);
+    const yt = niceTicks(yLo, yHi, 4);
+    const y0 = Math.min(yLo, yt[0]), y1 = Math.max(yHi, yt[yt.length - 1]);
+    const X = v => L + (v - a) / (b - a || 1) * (W - L - R);
+    const Y = v => T + (y1 - v) / (y1 - y0) * (H - T - B);
+
+    const root = svg("svg", { viewBox: `0 0 ${W} ${H}`, class: "chart", role: "img",
+        "aria-label": `Forecast as ${f.name} changes` });
+
+    yt.forEach(t => {
+        root.append(svg("line", { x1: L, x2: W - R, y1: Y(t), y2: Y(t), class: t === 0 ? "zero" : "grid" }));
+        root.append(svg("text", { x: L - 8, y: Y(t) + 4, "text-anchor": "end" }, units(t)));
+    });
+    niceTicks(a, b, 5).filter(t => t >= a && t <= b).forEach(t => {
+        root.append(svg("text", { x: X(t), y: H - B + 18, "text-anchor": "middle" }, f.fmt(t)));
+    });
+    root.append(svg("text", { x: (L + W - R) / 2, y: H - 4, "text-anchor": "middle", class: "strong" }, f.name));
+
+    const pts = xs.map((x, i) => [X(x), Y(ys[i])]);
+    const base0 = Y(Math.max(y0, 0));
+    root.append(svg("path", { class: "area",
+        d: `M${pts[0][0]},${base0} ` + pts.map(p => `L${p[0]},${p[1]}`).join(" ") + ` L${pts[pts.length - 1][0]},${base0} Z` }));
+    root.append(svg("path", { class: "line", d: "M" + pts.map(p => p.join(",")).join(" L") }));
+
+    const cx = X(current), cy = Y(curY);
+    root.append(svg("circle", { cx, cy, r: 7, class: "marker" }));
+
+    // Hover guide
+    const guide = svg("line", { y1: T, y2: H - B, class: "axis", visibility: "hidden" });
+    const hoverDot = svg("circle", { r: 4.5, class: "dot", visibility: "hidden" });
+    root.append(guide, hoverDot);
+    const hit = svg("rect", { x: L, y: T, width: W - L - R, height: H - T - B, fill: "transparent" });
+    root.append(hit);
+
+    const readout = $("sweepReadout");
+    const defaultReadout = `At your ${f.name.toLowerCase()} of <b>${f.fmt(current)}</b>: <b>${units(curY)}</b> units`;
+    readout.innerHTML = defaultReadout;
+
+    hit.addEventListener("mousemove", e => {
+        const rect = root.getBoundingClientRect();
+        const sx = (e.clientX - rect.left) / rect.width * W;
+        let i = Math.round((sx - L) / (W - L - R) * (N - 1));
+        i = Math.max(0, Math.min(N - 1, i));
+        guide.setAttribute("x1", pts[i][0]); guide.setAttribute("x2", pts[i][0]);
+        hoverDot.setAttribute("cx", pts[i][0]); hoverDot.setAttribute("cy", pts[i][1]);
+        guide.setAttribute("visibility", "visible"); hoverDot.setAttribute("visibility", "visible");
+        const d = ys[i] - curY;
+        readout.innerHTML = `${f.name} at <b>${f.fmt(xs[i])}</b>: <b>${units(ys[i])}</b> units (${d >= 0 ? "+" : "−"}${units(Math.abs(d))} vs. now)`;
+    });
+    hit.addEventListener("mouseleave", () => {
+        guide.setAttribute("visibility", "hidden"); hoverDot.setAttribute("visibility", "hidden");
+        readout.innerHTML = defaultReadout;
+    });
+
+    box.replaceChildren(root);
+}
+
+/* ------------------------------------------------------------------
+   Scenarios
+------------------------------------------------------------------ */
+function addScenario(payload, value) {
+    scenarios.push({ n: scenarios.length ? scenarios[scenarios.length - 1].n + 1 : 1, payload, value });
+    renderScenarios();
+}
+
+function renderScenarios() {
+    const body = $("scenarioBody");
+    $("scenarios").hidden = scenarios.length === 0;
+    const max = Math.max(1, ...scenarios.map(s => s.value));
+    const bestN = scenarios.reduce((b, s) => (!b || s.value > b.value ? s : b), null)?.n;
+    body.replaceChildren(...scenarios.slice().reverse().map(s => {
+        const p = s.payload;
+        const tr = document.createElement("tr");
+        if (s.n === bestN && scenarios.length > 1) tr.className = "best";
+        const barW = Math.max(2, Math.max(0, s.value) / max * 60);
+        tr.innerHTML = `
+            <td>${s.n}</td>
+            <td>${escapeHtml(p.product_category)}<br><span style="color:var(--muted)">${escapeHtml(p.brand_tier)}</span></td>
+            <td>${rupee(p.unit_price)}</td>
+            <td>${num(p.discount_percentage, 1)}%</td>
+            <td>${rupee(p.advertising_spend)}</td>
+            <td>${num(p.store_coverage_count)}</td>
+            <td>${num(p.customer_rating, 1)}</td>
+            <td>${num(p.inventory_availability_percentage)}%</td>
+            <td class="units"><span class="meter" style="width:${barW}px"></span>${units(s.value)}</td>
+            <td><button type="button" class="row-btn">Load</button></td>`;
+        tr.querySelector("button").addEventListener("click", () => loadScenario(s));
+        return tr;
+    }));
+}
+
+function loadScenario(s) {
+    const p = s.payload;
+    $("productCategory").value = p.product_category;
+    $("brandTier").value = p.brand_tier;
+    for (const f of NUMERIC) {
+        $(f.id).value = p[f.key];
+        const r = document.querySelector(`input[type="range"][data-for="${f.id}"]`);
+        if (r) { if (p[f.key] > Number(r.max)) r.max = String(Math.ceil(p[f.key] * 1.5)); r.value = p[f.key]; }
+    }
+    updateHints();
+    run({ save: false });
+    $("predictionForm").scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+}
+
+$("clearBtn").addEventListener("click", () => { scenarios = []; renderScenarios(); });
+
+$("exportBtn").addEventListener("click", () => {
+    const cols = ["product_category", "brand_tier", ...NUMERIC.map(f => f.key)];
+    const lines = [["scenario", ...cols, "predicted_units"].join(",")];
+    scenarios.forEach(s => lines.push([s.n, ...cols.map(c => `"${String(s.payload[c]).replace(/"/g, '""')}"`), s.value.toFixed(2)].join(",")));
+    const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: "demand_scenarios.csv" });
+    a.click();
+    URL.revokeObjectURL(a.href);
+});
+
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+updateHints();
+</script>
+</body>
+</html>

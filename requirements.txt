@@ -13,3 +13,5 @@ pandas>=2.2.2,<3
 
 # The model was saved with NumPy 2.x; NumPy 1.x cannot load it
 numpy>=2,<3
+
+gunicorn==22.0.0
